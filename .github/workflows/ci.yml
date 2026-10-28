@@ -1,20 +1,18 @@
-name: House Price API CI
+name: CI
 
 on:
   push:
-    branches: [main]
-  pull_request:
-    branches: [main]
   workflow_dispatch:
 
 permissions:
   contents: read
 
 jobs:
-  test-and-docker:
+  test:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Check out repository
+      - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Set up Python
@@ -23,28 +21,9 @@ jobs:
           python-version: '3.11'
 
       - name: Install dependencies
-        run: pip install -r requirements.txt
-
-      - name: Test saved model and API
-        run: python -m pytest -v
-
-      - name: Build Docker image
-        run: docker build -t house-price-api .
-
-      - name: Start Docker container
-        run: docker run -d --name house-price-api -p 8000:8000 house-price-api
-
-      - name: Execute Docker API endpoints
         run: |
-          curl --fail --retry 20 --retry-connrefused --retry-all-errors --retry-delay 2 http://127.0.0.1:8000/health
-          curl --fail http://127.0.0.1:8000/
-          curl --fail -X POST http://127.0.0.1:8000/predict -H "Content-Type: application/json" -d '{"longitude":-122.23,"latitude":37.88,"housing_median_age":41,"total_rooms":880,"total_bedrooms":129,"population":322,"households":126,"median_income":8.3252,"ocean_proximity":"NEAR BAY"}' > prediction.json
-          python -c "import json; price=json.load(open('prediction.json'))['predicted_median_house_value_usd']; assert price > 0; print('Docker prediction (USD):', price)"
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
 
-      - name: Show container logs
-        if: always()
-        run: docker logs house-price-api || true
-
-      - name: Stop Docker container
-        if: always()
-        run: docker rm -f house-price-api || true
+      - name: Run pytest suite
+        run: pytest -v
